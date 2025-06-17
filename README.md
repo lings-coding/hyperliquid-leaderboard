@@ -1,99 +1,240 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Hyperliquid Leaderboard Caching Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A high-performance caching service for Hyperliquid leaderboard data, built with NestJS. This service automatically fetches and caches leaderboard data from Hyperliquid's API, providing fast access to trading performance metrics with advanced filtering and sorting capabilities.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Automatic Data Synchronization**: Fetches leaderboard data every 5 minutes from Hyperliquid's API
+- **Intelligent Caching**: Maintains multiple versions of leaderboard data with batch IDs for data consistency
+- **Advanced Filtering**: Filter by PnL, ROI, volume, and account value across different time periods
+- **Flexible Sorting**: Sort by any metric (PnL, ROI, volume, account value) in ascending or descending order
+- **Pagination Support**: Built-in pagination with configurable limit and offset
+- **Real-time Updates**: Automatic cache refresh with fallback retry mechanism
+- **Type Safety**: Full TypeScript support with comprehensive interfaces
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## API Endpoints
 
-## Project setup
+### GET Leaderboard Data
 
-```bash
-$ npm install
+**Endpoint:** `POST /leaderboard`
+
+**Request Body:**
+
+```typescript
+{
+  batchId?: number;           // Specific batch ID to query (optional)
+  filter?: {                  // Filter criteria (optional)
+    pnl?: {
+      day?: { min?: number; max?: number };
+      week?: { min?: number; max?: number };
+      month?: { min?: number; max?: number };
+      allTime?: { min?: number; max?: number };
+    };
+    roi?: { /* same structure as pnl */ };
+    vlm?: { /* same structure as pnl */ };
+    accountValue?: { /* same structure as pnl */ };
+  };
+  limit?: number;             // Number of results to return (default: 10)
+  offset?: number;            // Number of results to skip (default: 0)
+  sort?: {                    // Sorting criteria (optional)
+    timePeriod: 'day' | 'week' | 'month' | 'allTime';
+    type: 'pnl' | 'roi' | 'vlm' | 'accountValue';
+    direction: 'asc' | 'desc';
+  };
+}
 ```
 
-## Compile and run the project
+**Response:**
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```typescript
+{
+  leaderboardRows: [
+    {
+      ethAddress: "0x...";
+      accountValue: "1000000";
+      windowPerformances: [
+        ["day", { pnl: "1000", roi: "0.1", vlm: "50000" }],
+        ["week", { pnl: "5000", roi: "0.5", vlm: "250000" }],
+        ["month", { pnl: "15000", roi: "1.5", vlm: "750000" }],
+        ["allTime", { pnl: "50000", roi: "5.0", vlm: "2500000" }]
+      ];
+      prize: 0;
+      displayName: "Trader Name";
+    }
+  ];
+  pagination?: {
+    batchId: number;
+    totalCount: number;
+    size: number;
+    hasMore: boolean;
+  };
+  error?: string;
+}
 ```
 
-## Run tests
+## Usage Examples
+
+### Basic Query
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl -X POST http://localhost:3000/leaderboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "limit": 20,
+    "offset": 0
+  }'
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Filtered Query
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+curl -X POST http://localhost:3000/leaderboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": {
+      "pnl": {
+        "day": { "min": 1000 },
+        "week": { "min": 5000 }
+      },
+      "accountValue": {
+        "allTime": { "min": 100000, "max": 10000000 }
+      }
+    },
+    "limit": 10
+  }'
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Sorted Query
 
-## Resources
+```bash
+curl -X POST http://localhost:3000/leaderboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sort": {
+      "timePeriod": "week",
+      "type": "pnl",
+      "direction": "desc"
+    },
+    "limit": 50
+  }'
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Complex Query with All Features
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+curl -X POST http://localhost:3000/leaderboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": {
+      "roi": {
+        "month": { "min": 0.1, "max": 2.0 }
+      },
+      "vlm": {
+        "allTime": { "min": 1000000 }
+      }
+    },
+    "sort": {
+      "timePeriod": "month",
+      "type": "roi",
+      "direction": "desc"
+    },
+    "limit": 25,
+    "offset": 50
+  }'
+```
 
-## Support
+## Data Structure
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Leaderboard Entry
 
-## Stay in touch
+Each leaderboard entry contains:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- **ethAddress**: Ethereum address of the trader
+- **accountValue**: Current account value in USD
+- **windowPerformances**: Performance metrics across different time periods
+  - **day**: 24-hour performance
+  - **week**: 7-day performance
+  - **month**: 30-day performance
+  - **allTime**: All-time performance
+- **prize**: Prize amount in USD
+- **displayName**: Trader's display name
+
+### Performance Metrics
+
+Each time period includes:
+
+- **pnl**: Profit and Loss in USD
+- **roi**: Return on Investment as a percentage
+- **vlm**: Trading volume in USD
+
+## Configuration
+
+The service uses the following configuration:
+
+- **LEADERBOARD_URL**: `https://stats-data.hyperliquid.xyz/Mainnet/leaderboard`
+- **REFRESH_INTERVAL**: 5 minutes (300,000 ms)
+- **Retry Interval**: 5 seconds on error
+
+## Error Handling
+
+The service handles various error scenarios:
+
+- **Data not available**: Returns empty results with error message when no cached data exists
+- **Invalid batch ID**: Returns error when requesting non-existent batch
+- **API failures**: Logs errors and continues with existing cached data
+- **Network issues**: Automatic retry with exponential backoff
+
+## Development
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+
+### Installation
+
+```bash
+npm install
+```
+
+### Running the Service
+
+```bash
+npm run start
+```
+
+### Development Mode
+
+```bash
+npm run start:dev
+```
+
+## Architecture
+
+The service follows a simple but effective architecture:
+
+1. **LeaderboardService**: Core service handling data fetching and caching
+2. **LeaderboardController**: REST API endpoints
+3. **Automatic Sync**: Background process that fetches data every 5 minutes
+4. **Batch Management**: Maintains multiple versions of data with timestamps
+5. **Filtering Engine**: In-memory filtering with support for complex queries
+6. **Sorting Engine**: Efficient sorting with support for multiple metrics
+
+## Performance Considerations
+
+- **Memory Usage**: Caches multiple batches of data (consider cleanup for long-running instances)
+- **Query Performance**: Filtering and sorting happen in-memory for optimal speed
+- **Network Efficiency**: Minimal API calls with intelligent caching
+- **Scalability**: Stateless design allows for horizontal scaling
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# bl-backend
+[Add your license information here]
