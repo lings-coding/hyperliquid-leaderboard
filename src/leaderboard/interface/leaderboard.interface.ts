@@ -22,9 +22,9 @@ export type LeaderboardSort = {
 export type LeaderboardQueryBody = {
   batchId?: number;
   filter?: LeaderboardFilter;
+  query?: string;
   limit?: number;
   offset?: number;
-  orderBy?: string;
   sort?: LeaderboardSort;
 };
 

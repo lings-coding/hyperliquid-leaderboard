@@ -21,7 +21,9 @@ export class LeaderboardService implements OnModuleInit {
     const id = await this.fetchAndUpdateCache();
     setTimeout(
       () => {
-        this.syncLeaderboard();
+        this.syncLeaderboard().catch((error) => {
+          console.error('Error syncing leaderboard:', error);
+        });
       },
       id ? this.REFRESH_INTERVAL : 5_000,
     );
@@ -96,6 +98,21 @@ export class LeaderboardService implements OnModuleInit {
       let filteredLeaderboard = leaderboard.filter((entry) => {
         const { accountValue, ...rest } = query.filter ?? {};
 
+        if (query.query) {
+          const queryLower = query.query.toLowerCase();
+
+          // check if address matches query
+          const addressMatch = entry.ethAddress
+            .toLowerCase()
+            .includes(queryLower);
+
+          // check if name matches query
+          const nameMatch =
+            entry.displayName &&
+            entry.displayName.toLowerCase().includes(queryLower);
+          if (!addressMatch && !nameMatch) return false;
+        }
+
         // for accountValue, we just need the largest "min" and smallet "max" across all time periods
         if (accountValue) {
           const min = Math.max(
@@ -132,7 +149,11 @@ export class LeaderboardService implements OnModuleInit {
         filteredLeaderboard = filteredLeaderboard.sort((a, b) => {
           // if sorting by accountValue, ignore time period
           if (sort.type === 'accountValue') {
-            return +a.accountValue - +b.accountValue;
+            if (sort.direction === 'asc') {
+              return +a.accountValue - +b.accountValue;
+            } else {
+              return +b.accountValue - +a.accountValue;
+            }
           }
           const aValue = a.windowPerformances.find(
             (w) => w[0] === sort.timePeriod,
